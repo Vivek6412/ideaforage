@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --forge-orange: #f97316;
+  --forge-orange-dim: #c2410c;
+  --forge-surface: #18181b;
+  --forge-border: #27272a;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    font-family: "Syne", sans-serif;
+    scroll-behavior: smooth;
+  }
+
+  code,
+  pre,
+  kbd,
+  samp {
+    font-family: "DM Mono", monospace;
+  }
+
+  ::selection {
+    background: #f97316;
+    color: #fff;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #18181b;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #3f3f46;
+    border-radius: 3px;
+  }
+}
+
+@layer utilities {
+  .text-forge-orange {
+    color: var(--forge-orange);
+  }
+
+  .border-forge {
+    border-color: var(--forge-border);
+  }
+
+  .bg-forge-surface {
+    background-color: var(--forge-surface);
+  }
+
+  .gradient-forge {
+    background: linear-gradient(135deg, #f97316 0%, #ef4444 100%);
+  }
+}

@@ -1,0 +1,29 @@
+# Logs
+*.log
+backend/server.log
+backend/server_new.log
+cookies.txt
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Node
+node_modules/
+.next/
+.env.local
+
+# OS
+.DS_Store
+
+# Testing and payloads
+cookies*.txt
+payload*.json
+*_payload_new.json
+register_payload.json
+Manual testing Screen shots/
+test_*.py
+test_idea.txt

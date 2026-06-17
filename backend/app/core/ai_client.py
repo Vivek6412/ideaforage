@@ -181,11 +181,13 @@ class AIClient:
     async def _call_gemini_raw(
         self, api_key: str, model_name: str, system: str, user: str, max_tokens: int
     ) -> str:
-        contents: list[dict[str, Any]] = []
         if system:
-            contents.append({"role": "user", "parts": [{"text": f"Instructions: {system}"}]})
-            contents.append({"role": "model", "parts": [{"text": "Understood."}]})
-        contents.append({"role": "user", "parts": [{"text": user}]})
+            user = f"System Instructions:\n{system}\n\nUser Input:\n{user}"
+            
+        payload: dict[str, Any] = {
+            "contents": [{"role": "user", "parts": [{"text": user}]}],
+            "generationConfig": {"maxOutputTokens": max_tokens},
+        }
 
         # Determine endpoint based on model version/type
         version = "v1" if "2.5" in model_name or "3.5" in model_name else "v1beta"
@@ -193,10 +195,7 @@ class AIClient:
         async with httpx.AsyncClient(timeout=60.0) as client:
             resp = await client.post(
                 f"https://generativelanguage.googleapis.com/{version}/models/{model_name}:generateContent?key={api_key}",
-                json={
-                    "contents": contents,
-                    "generationConfig": {"maxOutputTokens": max_tokens},
-                },
+                json=payload,
             )
         
         if resp.status_code == 429:

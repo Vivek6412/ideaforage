@@ -32,8 +32,7 @@ interface Deployment {
   build_status: string;
 }
 
-interface ProjectDetail {
-  project: Project;
+interface ProjectDetail extends Project {
   stage_outputs: StageOutput[];
   execution_tasks?: Array<{ id: string; status: string }>;
   github_push?: GithubPush;
@@ -56,7 +55,7 @@ const STAGES: StageDef[] = [
     key: "idea",
     label: "Idea Capture",
     description: "Structured idea, clarifying questions, confirmation",
-    href: (id) => `/projects/${id}`,
+    href: (id) => `/projects/${id}/idea`,
     doneStates: ["IDEA_CONFIRMED", "BLUEPRINT_DRAFT", "BLUEPRINT_CONFIRMED", "PROMPTS_GENERATED", "PROMPTS_CONFIRMED", "EXECUTION_RUNNING", "EXECUTION_COMPLETE", "GITHUB_PUSHED", "DEPLOYED"],
     activeStates: ["IDEA_CAPTURE"],
   },
@@ -224,7 +223,8 @@ export default function ProjectOverviewPage() {
     );
   }
 
-  const { project, stage_outputs = [], github_push, deployments = [] } = data;
+  const { stage_outputs = [], github_push, deployments = [] } = data;
+  const project   = data;
   const state     = project.current_state;
   const badgeCls  = STATE_BADGE[state] ?? STATE_BADGE.IDEA_CAPTURE;
   const doneCount = STAGES.filter((s) => stageStatus(s, state) === "done").length;

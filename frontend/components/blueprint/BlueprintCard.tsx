@@ -11,14 +11,23 @@ interface Props {
   status: SectionStatus;
   projectId: string;
   view: "plain" | "technical" | "both";
-  onApprove: (section: string) => void;
-  onEdit: (section: string, content: string) => Promise<void>;
+  onApprove?: (section: string) => void;
+  onEdit?: (section: string, content: string) => Promise<void>;
+  readOnly?: boolean;
 }
 
 function renderContent(
   content: string | string[] | Record<string, unknown>,
-  view: "plain" | "technical" | "both"
+  view: "plain" | "technical" | "both",
+  section?: string
 ): React.ReactNode {
+  // Fix for folder_structure coming in as a space-separated string
+  if (section === "folder_structure" && typeof content === "string") {
+    if (!content.includes("\n") && content.includes(" ")) {
+      content = content.split(" ").filter(Boolean);
+    }
+  }
+
   if (Array.isArray(content)) {
     return (
       <ul className="space-y-1.5">
@@ -64,6 +73,7 @@ export function BlueprintCard({
   view,
   onApprove,
   onEdit,
+  readOnly = false,
 }: Props) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(
@@ -78,7 +88,7 @@ export function BlueprintCard({
     setSaving(true);
     setEditError(null);
     try {
-      await onEdit(section, draft);
+      if (onEdit) await onEdit(section, draft);
       setEditing(false);
     } catch (e: any) {
       setEditError(e?.message ?? "Save failed");
@@ -111,7 +121,7 @@ export function BlueprintCard({
         </div>
 
         <div className="flex items-center gap-2">
-          {!approved && !editing && (
+          {!readOnly && !approved && !editing && (
             <>
               <button
                 onClick={() => setEditing(true)}
@@ -120,16 +130,16 @@ export function BlueprintCard({
                 Edit
               </button>
               <button
-                onClick={() => onApprove(section)}
+                onClick={() => onApprove?.(section)}
                 className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-400 hover:bg-emerald-500/20 transition-colors"
               >
                 Approve
               </button>
             </>
           )}
-          {approved && (
+          {!readOnly && approved && (
             <button
-              onClick={() => onApprove(section)} // toggle off
+              onClick={() => onApprove?.(section)} // toggle off
               className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
             >
               Undo
@@ -168,7 +178,7 @@ export function BlueprintCard({
             </div>
           </div>
         ) : (
-          renderContent(content, view)
+          renderContent(content, view, section)
         )}
       </div>
     </div>

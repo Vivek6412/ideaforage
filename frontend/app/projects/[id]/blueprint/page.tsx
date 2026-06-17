@@ -20,7 +20,7 @@ interface BlueprintData {
   tech_stack?: Record<string, string>;
   architecture_diagram?: string;
   mermaid_source?: string;
-  database_schema?: string;
+  database_schema?: any;
   api_spec?: Array<{
     method: string;
     path: string;
@@ -59,10 +59,12 @@ export default function BlueprintPage() {
   const [generating, setGenerating] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isReadOnly, setIsReadOnly] = useState(false);
 
   const loadBlueprint = useCallback(async () => {
     try {
-      const project = await apiClient.get<{ current_state: string }>(`/api/v1/projects/${projectId}`);
+      const project = await apiClient.get<any>(`/api/v1/projects/${projectId}`);
+      setIsReadOnly(project.current_state !== "BLUEPRINT_DRAFT" && project.current_state !== "IDEA_CONFIRMED");
 
       if (project.current_state === "BLUEPRINT_DRAFT" || project.current_state === "IDEA_CONFIRMED") {
         // Auto-generate if not yet generated
@@ -75,12 +77,19 @@ export default function BlueprintPage() {
         } finally {
           setGenerating(false);
         }
-      } else if (project.current_state === "BLUEPRINT_CONFIRMED") {
+      } else {
         // Load existing from stage_outputs
-        const data = await apiClient.get<{ blueprint: BlueprintData }>(
-          `/api/v1/projects/${projectId}/blueprint/generate`
-        );
-        setBlueprint(data.blueprint ?? data as any);
+        const stage = project.stage_outputs?.find((s: any) => s.stage === "blueprint" || s.stage === "BLUEPRINT");
+        if (stage && stage.output_json) {
+          const data = stage.output_json;
+          setBlueprint({
+            ...(data.blueprint || data),
+            mermaid_source: data.mermaid_source,
+            warnings: data.warnings,
+          });
+        } else {
+          setError("No blueprint data found for this project.");
+        }
       }
     } catch (e: any) {
       setError(e?.message ?? "Failed to load blueprint");
@@ -110,7 +119,7 @@ export default function BlueprintPage() {
     }
   }
 
-  async function handleStackUpdated(newStack: Record<string, string>) {
+  async function handleStackUpdated(newStack: any) {
     setBlueprint((prev) => prev ? { ...prev, tech_stack: newStack } : prev);
   }
 
@@ -201,11 +210,13 @@ export default function BlueprintPage() {
               <span className="text-xs text-zinc-500">Blueprint</span>
             </div>
             <h1 className="text-2xl font-extrabold text-white tracking-tight">
-              Blueprint Review
+              {isReadOnly ? "Blueprint Summary" : "Blueprint Review"}
             </h1>
-            <p className="text-zinc-500 text-sm mt-0.5">
-              Review and approve each section before generating prompts.
-            </p>
+            {!isReadOnly && (
+              <p className="text-zinc-500 text-sm mt-0.5">
+                Review and approve each section before generating prompts.
+              </p>
+            )}
           </div>
 
           {/* View toggle */}
@@ -225,28 +236,30 @@ export default function BlueprintPage() {
         </div>
 
         {/* Approval progress */}
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-5 py-4 flex items-center gap-4">
-          <div className="flex-1">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-zinc-500">Sections approved</span>
-              <span className="text-xs font-mono text-zinc-400">
-                {approvedCount} / {totalSections}
-              </span>
+        {!isReadOnly && (
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-5 py-4 flex items-center gap-4">
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-zinc-500">Sections approved</span>
+                <span className="text-xs font-mono text-zinc-400">
+                  {approvedCount} / {totalSections}
+                </span>
+              </div>
+              <div className="h-1.5 rounded-full bg-zinc-800 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-orange-500 transition-all"
+                  style={{ width: `${(approvedCount / totalSections) * 100}%` }}
+                />
+              </div>
             </div>
-            <div className="h-1.5 rounded-full bg-zinc-800 overflow-hidden">
-              <div
-                className="h-full rounded-full bg-orange-500 transition-all"
-                style={{ width: `${(approvedCount / totalSections) * 100}%` }}
-              />
-            </div>
+            <button
+              onClick={approveAll}
+              className="shrink-0 rounded-lg border border-zinc-700 px-3 py-1.5 text-xs text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+            >
+              Approve All
+            </button>
           </div>
-          <button
-            onClick={approveAll}
-            className="shrink-0 rounded-lg border border-zinc-700 px-3 py-1.5 text-xs text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
-          >
-            Approve All
-          </button>
-        </div>
+        )}
 
         {/* Warnings */}
         {blueprint.warnings?.map((w, i) => (
@@ -283,6 +296,7 @@ export default function BlueprintPage() {
                   view={view}
                   onApprove={toggleApprove}
                   onEdit={handleEdit}
+                  readOnly={isReadOnly}
                 />
               );
             })}
@@ -305,16 +319,18 @@ export default function BlueprintPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-mono text-zinc-500 uppercase tracking-widest">Tech Stack</span>
-                  <button
-                    onClick={() => toggleApprove("tech_stack")}
-                    className={`rounded-full border px-2.5 py-0.5 text-[10px] font-mono uppercase tracking-wide transition-colors ${
-                      sectionStatus["tech_stack"] === "approved"
-                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-                        : "border-zinc-700 text-zinc-500 hover:border-emerald-500/30 hover:text-emerald-400"
-                    }`}
-                  >
-                    {sectionStatus["tech_stack"] === "approved" ? "Approved ✓" : "Approve"}
-                  </button>
+                  {!isReadOnly && (
+                    <button
+                      onClick={() => toggleApprove("tech_stack")}
+                      className={`rounded-full border px-2.5 py-0.5 text-[10px] font-mono uppercase tracking-wide transition-colors ${
+                        sectionStatus["tech_stack"] === "approved"
+                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                          : "border-zinc-700 text-zinc-500 hover:border-emerald-500/30 hover:text-emerald-400"
+                      }`}
+                    >
+                      {sectionStatus["tech_stack"] === "approved" ? "Approved ✓" : "Approve"}
+                    </button>
+                  )}
                 </div>
                 <TechStackEditor
                   projectId={projectId}
@@ -329,16 +345,18 @@ export default function BlueprintPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-mono text-zinc-500 uppercase tracking-widest">Architecture</span>
-                  <button
-                    onClick={() => toggleApprove("architecture")}
-                    className={`rounded-full border px-2.5 py-0.5 text-[10px] font-mono uppercase tracking-wide transition-colors ${
-                      sectionStatus["architecture"] === "approved"
-                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-                        : "border-zinc-700 text-zinc-500 hover:border-emerald-500/30 hover:text-emerald-400"
-                    }`}
-                  >
-                    {sectionStatus["architecture"] === "approved" ? "Approved ✓" : "Approve"}
-                  </button>
+                  {!isReadOnly && (
+                    <button
+                      onClick={() => toggleApprove("architecture")}
+                      className={`rounded-full border px-2.5 py-0.5 text-[10px] font-mono uppercase tracking-wide transition-colors ${
+                        sectionStatus["architecture"] === "approved"
+                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                          : "border-zinc-700 text-zinc-500 hover:border-emerald-500/30 hover:text-emerald-400"
+                      }`}
+                    >
+                      {sectionStatus["architecture"] === "approved" ? "Approved ✓" : "Approve"}
+                    </button>
+                  )}
                 </div>
                 <MermaidDiagram source={blueprint.mermaid_source ?? blueprint.architecture_diagram ?? ""} />
               </div>
@@ -349,16 +367,18 @@ export default function BlueprintPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-mono text-zinc-500 uppercase tracking-widest">Database Schema</span>
-                  <button
-                    onClick={() => toggleApprove("database_schema")}
-                    className={`rounded-full border px-2.5 py-0.5 text-[10px] font-mono uppercase tracking-wide transition-colors ${
-                      sectionStatus["database_schema"] === "approved"
-                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-                        : "border-zinc-700 text-zinc-500 hover:border-emerald-500/30 hover:text-emerald-400"
-                    }`}
-                  >
-                    {sectionStatus["database_schema"] === "approved" ? "Approved ✓" : "Approve"}
-                  </button>
+                  {!isReadOnly && (
+                    <button
+                      onClick={() => toggleApprove("database_schema")}
+                      className={`rounded-full border px-2.5 py-0.5 text-[10px] font-mono uppercase tracking-wide transition-colors ${
+                        sectionStatus["database_schema"] === "approved"
+                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                          : "border-zinc-700 text-zinc-500 hover:border-emerald-500/30 hover:text-emerald-400"
+                      }`}
+                    >
+                      {sectionStatus["database_schema"] === "approved" ? "Approved ✓" : "Approve"}
+                    </button>
+                  )}
                 </div>
                 <SchemaViewer schema={blueprint.database_schema} />
               </div>
@@ -369,16 +389,18 @@ export default function BlueprintPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-mono text-zinc-500 uppercase tracking-widest">API Specification</span>
-                  <button
-                    onClick={() => toggleApprove("api_spec")}
-                    className={`rounded-full border px-2.5 py-0.5 text-[10px] font-mono uppercase tracking-wide transition-colors ${
-                      sectionStatus["api_spec"] === "approved"
-                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-                        : "border-zinc-700 text-zinc-500 hover:border-emerald-500/30 hover:text-emerald-400"
-                    }`}
-                  >
-                    {sectionStatus["api_spec"] === "approved" ? "Approved ✓" : "Approve"}
-                  </button>
+                  {!isReadOnly && (
+                    <button
+                      onClick={() => toggleApprove("api_spec")}
+                      className={`rounded-full border px-2.5 py-0.5 text-[10px] font-mono uppercase tracking-wide transition-colors ${
+                        sectionStatus["api_spec"] === "approved"
+                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                          : "border-zinc-700 text-zinc-500 hover:border-emerald-500/30 hover:text-emerald-400"
+                      }`}
+                    >
+                      {sectionStatus["api_spec"] === "approved" ? "Approved ✓" : "Approve"}
+                    </button>
+                  )}
                 </div>
                 <ApiSpecViewer endpoints={blueprint.api_spec} />
               </div>
@@ -400,41 +422,43 @@ export default function BlueprintPage() {
           </div>
         )}
 
-        {/* ── Confirm ── */}
-        <div className="sticky bottom-6 pt-4">
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-950/90 backdrop-blur-md px-6 py-4 flex items-center gap-4 shadow-2xl">
-            <div className="flex-1">
-              {!allApproved && (
-                <p className="text-xs text-zinc-500">
-                  Approve all sections or click "Approve All" above to proceed.
-                </p>
-              )}
-              {allApproved && (
-                <p className="text-xs text-emerald-400">
-                  ✓ All sections approved — ready to generate prompts.
-                </p>
-              )}
-              {error && (
-                <p className="text-xs text-red-400 mt-1">{error}</p>
-              )}
+        {/* Confirm Actions */}
+        {!isReadOnly && (
+          <div className="sticky bottom-6 mt-12 mx-auto max-w-5xl z-10">
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-950/90 backdrop-blur-md px-6 py-4 flex items-center gap-4 shadow-2xl">
+              <div className="flex-1">
+                {!allApproved && (
+                  <p className="text-xs text-zinc-500">
+                    Approve all sections or click "Approve All" above to proceed.
+                  </p>
+                )}
+                {allApproved && (
+                  <p className="text-xs text-emerald-400">
+                    ✓ All sections approved — ready to generate prompts.
+                  </p>
+                )}
+                {error && (
+                  <p className="text-xs text-red-400 mt-1">{error}</p>
+                )}
+              </div>
+              <button
+                onClick={handleConfirm}
+                disabled={confirming || !allApproved}
+                className="shrink-0 rounded-xl px-6 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+                style={{ background: "linear-gradient(135deg, #f97316 0%, #ef4444 100%)" }}
+              >
+                {confirming ? (
+                  <span className="flex items-center gap-2">
+                    <span className="w-3.5 h-3.5 border-2 border-orange-200/40 border-t-white rounded-full animate-spin" />
+                    Confirming…
+                  </span>
+                ) : (
+                  "Confirm Blueprint →"
+                )}
+              </button>
             </div>
-            <button
-              onClick={handleConfirm}
-              disabled={confirming}
-              className="shrink-0 rounded-xl px-6 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
-              style={{ background: "linear-gradient(135deg, #f97316 0%, #ef4444 100%)" }}
-            >
-              {confirming ? (
-                <span className="flex items-center gap-2">
-                  <span className="w-3.5 h-3.5 border-2 border-orange-200/40 border-t-white rounded-full animate-spin" />
-                  Confirming…
-                </span>
-              ) : (
-                "Confirm Blueprint →"
-              )}
-            </button>
           </div>
-        </div>
+        )}
 
       </div>
     </div>

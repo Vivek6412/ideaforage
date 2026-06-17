@@ -31,7 +31,7 @@ const STATE_META: Record<string, { label: string; color: string; step: number }>
 const TOTAL_STEPS = 10;
 
 function stageHref(projectId: string, state: string): string {
-  if (state.startsWith("IDEA")) return `/projects/${projectId}`;
+  if (state.startsWith("IDEA")) return `/projects/${projectId}/idea`;
   if (state.startsWith("BLUEPRINT")) return `/projects/${projectId}/blueprint`;
   if (state.startsWith("PROMPTS")) return `/projects/${projectId}/prompts`;
   if (state.startsWith("EXECUTION")) return `/projects/${projectId}/execution`;

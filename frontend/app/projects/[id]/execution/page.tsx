@@ -30,7 +30,7 @@ export default function ExecutionPage() {
   const isRunning = projectState === "EXECUTION_RUNNING";
   const isPaused = projectState === "PAUSED";
   const isComplete = projectState === "EXECUTION_COMPLETE";
-  const notStarted = !isRunning && !isPaused && !isComplete && tasks.length === 0;
+  const notStarted = !isRunning && !isPaused && !isComplete;
 
   async function handleStart() {
     try {

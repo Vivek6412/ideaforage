@@ -21,7 +21,7 @@ export function Navbar() {
 
   async function handleLogout() {
     try {
-      await apiClient.delete("/api/v1/auth/logout");
+      await apiClient.post("/api/v1/auth/logout");
     } catch {
       // continue regardless
     }

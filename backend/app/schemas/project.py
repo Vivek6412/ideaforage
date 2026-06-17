@@ -37,7 +37,7 @@ class StageOutputResponse(BaseModel):
 
 class ExecutionTaskSummary(BaseModel):
     id: UUID
-    name: str
+    task_name: str
     status: str
     retry_count: int
 

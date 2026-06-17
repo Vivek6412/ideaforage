@@ -34,6 +34,12 @@ const CATEGORY_ICONS: Record<string, string> = {
   hosting: "☁️",
 };
 
+interface TechInfo {
+  tech?: string;
+  version?: string;
+  reasoning?: string;
+}
+
 function StackCard({
   category,
   value,
@@ -41,12 +47,25 @@ function StackCard({
   onUpdated,
 }: {
   category: string;
-  value: string;
+  value: any; // Can be string or TechInfo object
   projectId: string;
-  onUpdated: (category: string, value: string) => void;
+  onUpdated: (category: string, value: any) => void;
 }) {
   const [editing, setEditing] = useState(false);
-  const [selected, setSelected] = useState(value);
+  
+  // Extract display string from potential object
+  const getDisplayString = (val: any) => {
+    if (!val) return "";
+    if (typeof val === "string") return val;
+    if (typeof val === "object") {
+      if (val.tech) return `${val.tech}${val.version ? ` ${val.version}` : ""}`;
+      return JSON.stringify(val);
+    }
+    return String(val);
+  };
+
+  const initialStringValue = getDisplayString(value);
+  const [selected, setSelected] = useState(initialStringValue);
   const [customInput, setCustomInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,11 +80,16 @@ function StackCard({
     setSaving(true);
     setError(null);
     try {
+      // Reconstruct object if the original value was an object
+      const newValue = typeof value === "object" && value !== null
+        ? { ...value, tech: effectiveValue.trim() }
+        : effectiveValue.trim();
+
       await apiClient.patch(`/api/v1/projects/${projectId}/blueprint/edit`, {
         section: "tech_stack",
-        changes: { [category]: effectiveValue.trim() },
+        changes: { [category]: newValue },
       });
-      onUpdated(category, effectiveValue.trim());
+      onUpdated(category, newValue);
       setEditing(false);
     } catch (e: any) {
       setError(e?.message ?? "Save failed");
@@ -74,8 +98,40 @@ function StackCard({
     }
   }
 
+  const renderValue = () => {
+    if (!value) return <p className="text-sm font-medium text-zinc-200">—</p>;
+    
+    if (typeof value === "object") {
+      if (value.tech) {
+        return (
+          <div className="flex flex-col gap-1">
+            <p className="text-sm font-medium text-zinc-200">
+              {value.tech} {value.version && <span className="text-xs text-zinc-400 bg-zinc-800 px-1.5 py-0.5 rounded ml-1">{value.version}</span>}
+            </p>
+            {value.reasoning && (
+              <p className="text-xs text-zinc-500 italic mt-1 border-l-2 border-zinc-700 pl-2">
+                {value.reasoning}
+              </p>
+            )}
+          </div>
+        );
+      }
+      // Handle deployment object { frontend: "...", backend: "..." }
+      return (
+        <div className="flex flex-col gap-1">
+          {Object.entries(value).map(([k, v]) => (
+            <p key={k} className="text-xs text-zinc-300">
+              <span className="text-zinc-500 capitalize">{k}:</span> {String(v)}
+            </p>
+          ))}
+        </div>
+      );
+    }
+    return <p className="text-sm font-medium text-zinc-200">{value}</p>;
+  };
+
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 group">
+    <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4 group flex flex-col justify-between">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <span>{CATEGORY_ICONS[category] ?? "📦"}</span>
@@ -86,8 +142,8 @@ function StackCard({
         {!editing && (
           <button
             onClick={() => {
-              setSelected(value);
-              setCustomInput(options.includes(value) ? "" : value);
+              setSelected(initialStringValue);
+              setCustomInput(options.includes(initialStringValue) ? "" : initialStringValue);
               setEditing(true);
             }}
             className="hidden group-hover:block text-xs text-zinc-500 hover:text-zinc-300 border border-zinc-700 rounded px-2 py-0.5 transition-colors"
@@ -127,7 +183,7 @@ function StackCard({
               {isNonStandard && (
                 <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/8 px-3 py-2">
                   <p className="text-xs text-amber-300">
-                    ⚠ Custom tech may not be optimally supported by the AI generator. Blueprint will attempt to adapt.
+                    ⚠ Custom tech may not be optimally supported by the AI generator.
                   </p>
                 </div>
               )}
@@ -144,7 +200,7 @@ function StackCard({
               disabled={saving || !effectiveValue.trim()}
               className="rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-orange-400 disabled:opacity-50 transition-colors"
             >
-              {saving ? "Saving…" : "Save & Regenerate"}
+              {saving ? "Saving…" : "Save"}
             </button>
             <button
               onClick={() => { setEditing(false); setError(null); }}
@@ -155,7 +211,7 @@ function StackCard({
           </div>
         </div>
       ) : (
-        <p className="text-sm font-medium text-zinc-200">{value || "—"}</p>
+        renderValue()
       )}
     </div>
   );

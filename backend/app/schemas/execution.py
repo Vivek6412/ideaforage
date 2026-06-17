@@ -23,6 +23,7 @@ class ExecutionTaskInfo(BaseModel):
 
 class ExecutionStatusResponse(BaseModel):
     tasks: list[ExecutionTaskInfo]
+    project_state: str
 
 
 class TaskDetailResponse(BaseModel):

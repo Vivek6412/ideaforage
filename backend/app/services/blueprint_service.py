@@ -42,6 +42,7 @@ Rules:
 - Database schema must be real (not placeholder): exact SQL types, constraints, UUID PKs, TIMESTAMPTZ
 - API routes must be versioned /api/v1/ — all of them
 - reasoning per tech choice: max 10 words
+- folder_structure must be a detailed, deep tree representation (using \\n) matching a production Next.js + FastAPI monolithic structure. DO NOT use a single line string.
 - complexity_estimate: "Low" | "Medium" | "High" — honest assessment
 - If complexity is High: populate module_cut_suggestions with concrete cuts
 - Return ONLY valid JSON matching this exact schema:
@@ -409,6 +410,11 @@ async def generate_blueprint(
     for dep in deprecations:
         if dep.get("deprecated") not in existing_ap:
             blueprint.setdefault("anti_patterns", []).append(dep)
+
+    # Merge idea fields so frontend can show them in plain English
+    blueprint["product_summary"] = structured_idea.get("core_idea", structured_idea.get("description", ""))
+    blueprint["target_users"] = structured_idea.get("target_users", "")
+    blueprint["key_features"] = structured_idea.get("core_features", structured_idea.get("key_features", []))
 
     mermaid_source = _generate_mermaid(blueprint)
 

@@ -70,9 +70,10 @@ async def get_execution_status(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> ExecutionStatusResponse:
-    tasks = await execution_service.get_execution_status(db, project_id, current_user.id)
+    result = await execution_service.get_execution_status(db, project_id, current_user.id)
     return ExecutionStatusResponse(
-        tasks=[ExecutionTaskInfo.model_validate(t) for t in tasks]
+        tasks=[ExecutionTaskInfo.model_validate(t) for t in result["tasks"]],
+        project_state=result["project_state"],
     )
 
 

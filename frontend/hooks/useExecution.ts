@@ -80,10 +80,13 @@ export function useExecution(projectId: string) {
       }>(`/api/v1/projects/${projectId}/execution/status`);
       setTasks(data.tasks ?? []);
       setProjectState(data.project_state ?? "");
+      if (!selectedTaskId && data.tasks && data.tasks.length > 0) {
+        setSelectedTaskId(data.tasks[0].id);
+      }
     } catch {
       // ignore; WS will provide updates
     }
-  }, [projectId]);
+  }, [projectId, selectedTaskId]);
 
   // ── WebSocket ──────────────────────────────────────────────────────────────
 

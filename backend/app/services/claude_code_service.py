@@ -92,10 +92,12 @@ class ClaudeCodeSession:
         project_id: UUID,
         project_path: str,
         context_files: list[dict[str, str]],
+        user_keys: dict[str, str],
     ) -> None:
         self._project_id = project_id
         self._project_path = project_path
         self._context_files = context_files  # [{"name": "MASTER.md", "content": "..."}]
+        self._user_keys = user_keys
         self._process: Optional[asyncio.subprocess.Process] = None
         self._stderr_task: Optional[asyncio.Task] = None
         self._stderr_lines: list[str] = []
@@ -116,6 +118,12 @@ class ClaudeCodeSession:
             claude_path,
         )
 
+        # Setup environment variables including Anthropic API key
+        env = os.environ.copy()
+        anthropic_key = self._user_keys.get("anthropic")
+        if anthropic_key:
+            env["ANTHROPIC_API_KEY"] = anthropic_key
+
         try:
             self._process = await asyncio.create_subprocess_exec(
                 claude_path,
@@ -123,6 +131,7 @@ class ClaudeCodeSession:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=self._project_path,
+                env=env,
             )
         except FileNotFoundError as exc:
             raise RuntimeError(
@@ -283,6 +292,7 @@ async def run_task_via_claude_code(
     task: Any,           # ExecutionTask model instance
     project: Any,        # Project model instance
     context: dict[str, Any],
+    user_keys: dict[str, str],
 ) -> dict[str, Any]:
     """
     Execute a single task through the Claude Code CLI subprocess.
@@ -294,6 +304,20 @@ async def run_task_via_claude_code(
     Returns {"files": [{"path": str, "content": str}]}.
     Raises RuntimeError on timeout or failure to parse output.
     """
+    claude_path = _get_claude_code_path()
+    import shutil
+    if not shutil.which(claude_path):
+        raise RuntimeError(
+            "there is no claude cli in your system please download it."
+        )
+        
+    anthropic_key = user_keys.get("anthropic")
+    if not anthropic_key:
+        raise RuntimeError(
+            "Claude Code CLI is installed, but no Anthropic API key is connected. "
+            "Please provide an Anthropic API key to use local execution."
+        )
+
     project_id: UUID = project.id
     project_path = os.path.join(PROJECT_BASE_PATH, str(project_id))
 
@@ -304,6 +328,7 @@ async def run_task_via_claude_code(
         project_id=project_id,
         project_path=project_path,
         context_files=context_files,
+        user_keys=user_keys,
     )
 
     try:

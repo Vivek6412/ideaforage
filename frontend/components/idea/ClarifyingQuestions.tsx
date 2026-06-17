@@ -24,6 +24,7 @@ interface Props {
   onRefine: (answers: Record<string, string>, corrections: Record<string, string>) => void;
   onConfirm: () => void;
   loading?: boolean;
+  readOnly?: boolean;
 }
 
 const WARNING_LABELS: Record<string, string> = {
@@ -41,6 +42,7 @@ export function ClarifyingQuestions({
   onRefine,
   onConfirm,
   loading = false,
+  readOnly = false,
 }: Props) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [corrections, setCorrections] = useState<Record<string, string>>({});
@@ -124,7 +126,7 @@ export function ClarifyingQuestions({
           ))}
 
         {/* Questions */}
-        {questions.length > 0 ? (
+        {questions.length > 0 && !readOnly ? (
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <div className="h-px flex-1 bg-zinc-800" />
@@ -200,28 +202,30 @@ export function ClarifyingQuestions({
               )}
             </button>
           </div>
-        ) : (
+        ) : !readOnly ? (
           <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
             <p className="text-sm text-emerald-300 font-medium">✓ Idea is clear and ready to proceed</p>
           </div>
-        )}
+        ) : null}
 
         {/* Confirm button */}
-        <button
-          onClick={onConfirm}
-          disabled={loading}
-          className="w-full rounded-xl py-3 text-sm font-semibold text-white gradient-forge hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
-          style={{ background: "linear-gradient(135deg, #f97316 0%, #ef4444 100%)" }}
-        >
-          {loading ? (
-            <span className="flex items-center justify-center gap-2">
-              <span className="w-3.5 h-3.5 border-2 border-orange-200/50 border-t-white rounded-full animate-spin" />
-              Confirming…
-            </span>
-          ) : (
-            "Looks Good — Proceed to Blueprint →"
-          )}
-        </button>
+        {!readOnly && (
+          <button
+            onClick={onConfirm}
+            disabled={loading}
+            className="w-full rounded-xl py-3 text-sm font-semibold text-white gradient-forge hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+            style={{ background: "linear-gradient(135deg, #f97316 0%, #ef4444 100%)" }}
+          >
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="w-3.5 h-3.5 border-2 border-orange-200/50 border-t-white rounded-full animate-spin" />
+                Confirming…
+              </span>
+            ) : (
+              "Looks Good — Proceed to Blueprint →"
+            )}
+          </button>
+        )}
       </div>
     </div>
   );

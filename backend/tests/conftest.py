@@ -54,3 +54,10 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
         transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
         yield ac
+
+@pytest.fixture
+async def auth_client(client: AsyncClient, db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+    # Register and login a standard test user
+    await client.post("/api/v1/auth/register", json={"email": "testuser@ideaforge.com", "password": "password123"})
+    await client.post("/api/v1/auth/login", json={"email": "testuser@ideaforge.com", "password": "password123"})
+    yield client

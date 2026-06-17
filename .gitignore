@@ -13,21 +13,6 @@ venv/
 
 # Node
 node_modules/
-# Logs
-*.log
-backend/server.log
-backend/server_new.log
-cookies.txt
-
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-venv/
-.env
-
-# Node
-node_modules/
 .next/
 .env.local
 
@@ -39,12 +24,10 @@ cookies*.txt
 payload*.json
 *_payload_new.json
 register_payload.json
-Manual testing Screen shots/
 test_*.py
 test_idea.txt
 
-# Additional Industry Standards
-# Build & Test
+# Build & Test artifacts
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
@@ -53,6 +36,9 @@ htmlcov/
 dist/
 build/
 *.egg-info/
+tsconfig.tsbuildinfo
+frontend/playwright-report/
+frontend/test-results/
 
 # IDE & Editor
 .vscode/
@@ -63,3 +49,7 @@ build/
 # Misc
 .env.*
 !.env.example
+
+# Project-specific ignored folders
+Manual testing Screen shots/
+ideaforge/

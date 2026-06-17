@@ -500,9 +500,23 @@ async def _run_next_eligible_task(
                 ],
             }
             try:
-                result = await run_task_via_claude_code(task, project, context)
+                result = await run_task_via_claude_code(task, project, context, user_keys)
             except RuntimeError as exc:
-                await handle_error(db, task, str(exc), user_keys, master_prompt)
+                error_msg = str(exc)
+                if "there is no claude cli" in error_msg.lower():
+                    task.status = "failed"
+                    task.error_log = error_msg
+                    task.updated_at = datetime.now(timezone.utc)
+                    advance_state(project, "PAUSED")
+                    project.paused_reason = json.dumps({"reason": error_msg})
+                    await db.commit()
+                    await websocket_manager.broadcast(str(project_id), {
+                        "event": "task_failed",
+                        "task_id": str(task.id),
+                        "error": error_msg,
+                    })
+                    return
+                await handle_error(db, task, error_msg, user_keys, master_prompt)
                 return
         else:
             result = await execute_task_via_api(db, task, user_keys, master_prompt)
@@ -586,9 +600,13 @@ async def get_execution_status(
     db: AsyncSession,
     project_id: UUID,
     user_id: UUID,
-) -> list[ExecutionTask]:
-    await _get_project(db, project_id, user_id)
-    return await _load_all_tasks(db, project_id)
+) -> dict[str, Any]:
+    project = await _get_project(db, project_id, user_id)
+    tasks = await _load_all_tasks(db, project_id)
+    return {
+        "tasks": tasks,
+        "project_state": project.current_state,
+    }
 
 
 async def get_task_detail(

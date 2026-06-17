@@ -2,27 +2,37 @@
 
 import { useState } from "react";
 
+interface Field {
+  name: string;
+  type: string;
+  constraints?: string[];
+}
+
+interface Table {
+  name: string;
+  fields: Field[];
+  relationships?: string[];
+  indexes?: string[];
+}
+
+interface SchemaData {
+  tables?: Table[];
+}
+
 interface Props {
-  schema: string; // raw SQL DDL from blueprint
+  schema: SchemaData | string;
 }
 
 type SchemaMode = "standard" | "detailed";
 
-interface ParsedTable {
-  name: string;
-  fields: string[];
-  rawSql: string;
-}
-
-function parseTables(sql: string): ParsedTable[] {
-  const tables: ParsedTable[] = [];
+function parseLegacySql(sql: string): Table[] {
+  const tables: Table[] = [];
   const createRegex = /CREATE\s+TABLE\s+(\w+)\s*\(([^;]+)\)/gi;
   let match;
 
   while ((match = createRegex.exec(sql)) !== null) {
     const name = match[1];
     const body = match[2];
-    const rawSql = match[0] + ";";
 
     const fields = body
       .split("\n")
@@ -30,14 +40,28 @@ function parseTables(sql: string): ParsedTable[] {
       .filter((l) => l && !l.startsWith("--") && !l.startsWith("CONSTRAINT") && !l.startsWith("PRIMARY") && !l.startsWith("FOREIGN") && !l.startsWith("UNIQUE") && !l.startsWith("CHECK"))
       .map((l) => {
         const parts = l.replace(/,$/, "").trim().split(/\s+/);
-        return parts.slice(0, 2).join(" "); // name + type
+        return { name: parts[0] || "", type: parts[1] || "", constraints: parts.slice(2) };
       })
-      .filter(Boolean);
+      .filter((f) => f.name);
 
-    tables.push({ name, fields, rawSql });
+    tables.push({ name, fields, relationships: [], indexes: [] });
   }
 
   return tables;
+}
+
+function generateRawSql(table: Table): string {
+  let sql = `CREATE TABLE ${table.name} (\n`;
+  const fieldLines = table.fields.map(f => {
+    let line = `  ${f.name} ${f.type}`;
+    if (f.constraints && f.constraints.length > 0) {
+      line += ` ${f.constraints.join(" ")}`;
+    }
+    return line;
+  });
+  sql += fieldLines.join(",\n");
+  sql += "\n);";
+  return sql;
 }
 
 function colorSql(sql: string): React.ReactNode {
@@ -48,7 +72,6 @@ function colorSql(sql: string): React.ReactNode {
     if (keywords.test(part)) {
       return <span key={i} className="text-blue-400 font-semibold">{part}</span>;
     }
-    // String literals
     const strParts = part.split(/('.*?')/g);
     return strParts.map((s, j) =>
       s.startsWith("'") ? (
@@ -62,7 +85,13 @@ function colorSql(sql: string): React.ReactNode {
 
 export function SchemaViewer({ schema }: Props) {
   const [mode, setMode] = useState<SchemaMode>("standard");
-  const tables = parseTables(schema || "");
+  
+  let tables: Table[] = [];
+  if (typeof schema === "string") {
+    tables = parseLegacySql(schema);
+  } else if (schema && schema.tables) {
+    tables = schema.tables;
+  }
 
   return (
     <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 overflow-hidden">
@@ -102,14 +131,14 @@ export function SchemaViewer({ schema }: Props) {
                     {t.name}
                   </span>
                   <span className="ml-auto text-xs text-zinc-600">
-                    {t.fields.length} fields
+                    {t.fields?.length || 0} fields
                   </span>
                 </div>
                 <ul className="space-y-0.5">
-                  {t.fields.map((f, i) => (
+                  {t.fields?.map((f, i) => (
                     <li key={i} className="text-xs text-zinc-400 font-mono flex gap-2">
                       <span className="text-zinc-600">—</span>
-                      {f}
+                      {f.name} <span className="text-zinc-500">{f.type}</span>
                     </li>
                   ))}
                 </ul>
@@ -124,7 +153,7 @@ export function SchemaViewer({ schema }: Props) {
                   {t.name}
                 </p>
                 <pre className="rounded-lg bg-zinc-950 border border-zinc-800 p-4 text-xs font-mono overflow-x-auto leading-relaxed text-zinc-300">
-                  {colorSql(t.rawSql)}
+                  {colorSql(generateRawSql(t))}
                 </pre>
               </div>
             ))}

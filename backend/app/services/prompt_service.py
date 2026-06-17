@@ -54,7 +54,7 @@ async def _ai_json(
     user_keys: dict[str, str],
     system: str,
     user_prompt: str,
-    max_tokens: int = 4096,
+    max_tokens: int = 8192,
 ) -> dict[str, Any]:
     raw = await ai_client.call_with_fallback(user_keys, system, user_prompt, max_tokens)
     
@@ -113,7 +113,6 @@ async def generate_prompts(
     prompt_data = await _ai_json(user_keys, system, user_content)
 
     import asyncio
-    from app.core.ai_client import ai_client
     
     build_guide_task = ai_client.call_with_fallback(user_keys, "You are a senior architect", BUILD_GUIDE_PROMPT.format(blueprint_json=json.dumps(blueprint)), 4000)
     testing_guide_task = ai_client.call_with_fallback(user_keys, "You are a QA engineer", TESTING_GUIDE_PROMPT.format(blueprint_json=json.dumps(blueprint)), 4000)

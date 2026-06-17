@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 let testEmail = `test_ui_${Date.now()}@example.com`;
 const testPassword = 'password123';
-const geminiKey = 'REDACTED_GEMINI_KEY';
+const geminiKey = 'process.env.TEST_GEMINI_KEY || ""';
 
 test('Project Creation and Idea Refinement Flow', async ({ page }) => {
   test.setTimeout(90000); // 90 seconds timeout for AI generation

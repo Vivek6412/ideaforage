@@ -29,7 +29,7 @@ test('Refine Idea to Blueprint Flow', async ({ page }) => {
 
   // 3. Answer questions intelligently (concurrently)
   const questions = await page.locator('.rounded-xl.border.border-zinc-800.bg-zinc-900\\/60.p-4').all();
-  const apiKey = 'REDACTED_GEMINI_KEY';
+  const apiKey = 'process.env.TEST_GEMINI_KEY || ""';
   
   await Promise.all(questions.map(async (q) => {
     const questionText = await q.locator('p').first().textContent();
